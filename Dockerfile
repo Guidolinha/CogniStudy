@@ -11,29 +11,32 @@ RUN apk add --no-cache \
     oniguruma-dev \
     $PHPIZE_DEPS
 
-# Instala as extensões PHP fundamentais
+# Instala as extensões PHP fundamentais que o Laravel e o Symfony exigem
 RUN docker-php-ext-install pdo pdo_mysql mbstring xml bcmath
 
-# Instala o Composer globalmente
+# Instala o Composer globalmente dentro do container
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Define a pasta de trabalho antes de copiar os arquivos
 WORKDIR /var/www/html
 
-# Copia os arquivos do projeto para o container
+# Copia todos os arquivos do seu projeto para o container
 COPY . /var/www/html
 
-# Configurações de ambiente do Composer
+# Configurações de ambiente para o Composer rodar como root no container
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# ATENÇÃO AQUI: Adicionamos o --no-scripts para o Laravel NÃO tentar rodar código antes da hora
-RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs --no-scripts
+# Limpa qualquer resquício de cache do composer antes de instalar
+RUN composer clear-cache
 
-# Ajusta permissões das pastas que o Laravel precisa escrever
+# Instala as dependências puros sem rodar scripts que possam travar o build
+RUN composer install --no-interaction --optimize-autoloader --no-dev --no-scripts
+
+# Ajusta as permissões de escrita para o Alpine Linux nas pastas do Laravel
 RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Porta que o Render vai escutar
+# Avisa o Render que o container vai usar a porta 10000
 EXPOSE 10000
 
-# O comando de inicialização roda o servidor embutido do PHP
+# Inicia o servidor embutido do PHP apontando para a pasta public do Laravel
 CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
