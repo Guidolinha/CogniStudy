@@ -1,20 +1,37 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.3-cli-alpine
 
-# Instala as extensões do PHP que o Laravel precisa e o Composer
-RUN apk add --no-cache unzip bzip2 git curl \
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Instala dependências do sistema e ferramentas para compilar extensões do PHP
+RUN apk add --no-cache \
+    unzip \
+    bzip2 \
+    git \
+    curl \
+    libpq-dev \
+    libxml2-dev \
+    oniguruma-dev \
+    $PHPIZE_DEPS
 
-# Copia os arquivos do projeto para o servidor
+# Instala as extensões PHP essenciais que o Laravel e o Symfony exigem para não dar erro de sintaxe
+RUN docker-php-ext-install pdo pdo_mysql mbstring xml bcmath
+
+# Instala o Composer globalmente
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Copia os arquivos do seu projeto para dentro do container
 COPY . /var/www/html
 
+# Define a pasta de trabalho
 WORKDIR /var/www/html
 
-# Configurações de ambiente do Composer e instalação das dependências
+# Configurações de ambiente do Composer e instalação limpa das dependências
 ENV COMPOSER_ALLOW_SUPERUSER=1
-RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs --no-scripts
+RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Ajusta as permissões de escrita fundamentais para o Laravel rodar
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Ajusta as permissões para o Alpine Linux (no Alpine o usuário padrão é root, mas damos permissão geral)
+RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Comando padrão para iniciar o PHP
+# Avisa o Render que vamos usar a porta 10000
+EXPOSE 10000
+
+# Comando para iniciar o servidor embutido do Laravel focado na pasta public
 CMD ["php", "-S", "0.0.0.0:10000", "-t", "public"]
