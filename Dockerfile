@@ -1,4 +1,4 @@
-FROM richarvey/nginx-php-fpm:3.1.6
+FROM richarvey/nginx-php-fpm:3.1.7
 
 # Copia os arquivos do projeto para o servidor
 COPY . /var/www/html
